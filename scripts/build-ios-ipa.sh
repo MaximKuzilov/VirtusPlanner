@@ -10,17 +10,17 @@ cd "$ROOT"
 OUTPUT="$ROOT/build/ios"
 mkdir -p "$OUTPUT"
 node scripts/ios-icons.cjs
-xcodebuild -workspace ios/VirtusPlanner.xcworkspace -scheme VirtusPlanner \
+xcodebuild -quiet -workspace ios/VirtusPlanner.xcworkspace -scheme VirtusPlanner \
   -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
   -archivePath "$OUTPUT/VirtusPlanner.xcarchive" \
   -resultBundlePath "$OUTPUT/Archive-$(date +%s).xcresult" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
-  archive | tee "$OUTPUT/xcodebuild.log"
+  archive 2>&1 | tee "$OUTPUT/xcodebuild.log"
 
 APP="$OUTPUT/VirtusPlanner.xcarchive/Products/Applications/VirtusPlanner.app"
 test -s "$APP/VirtusPlanner"
 test -s "$APP/main.jsbundle"
-lipo -verify_arch arm64 "$APP/VirtusPlanner"
+lipo "$APP/VirtusPlanner" -verify_arch arm64
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
 STAGING="$(mktemp -d "$OUTPUT/package.XXXXXX")"
 mkdir -p "$STAGING/Payload"
