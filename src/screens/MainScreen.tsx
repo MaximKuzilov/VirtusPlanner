@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
 
-const tabIcons = {
+const tabIcons: Record<string, string> = {
     "Today": "📅",
     "Tasks": "✅",
     "Assistant": "🤖",

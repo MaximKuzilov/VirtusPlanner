@@ -1,5 +1,7 @@
 import React, { useRef } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, FlatList, Animated, Dimensions } from "react-native";
+import { useTheme } from "../store/theme";
+import { rw, rh, rf, ms, WINDOW_WIDTH } from "../utils/responsive";
 
 const { width, height } = Dimensions.get("window");
 
@@ -27,9 +29,10 @@ const DATA = [
     },
 ];
 
-const OnboardingScreen = ({ onFinish }) => {
+const OnboardingScreen = ({ onFinish }: { onFinish: () => void }) => {
     const scrollX = useRef(new Animated.Value(0)).current;
     const flatListRef = useRef(null);
+    const { colors } = useTheme();
 
     // Функция для отрисовки точек-индикаторов
     const Paginator = () => {
@@ -53,7 +56,7 @@ const OnboardingScreen = ({ onFinish }) => {
         );
     };
 
-    const renderItem = ({ item, index }) => {
+    const renderItem = ({ item, index }: { item: typeof DATA[number]; index: number }) => {
         const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
         
         // Анимация масштаба иконки
@@ -64,19 +67,19 @@ const OnboardingScreen = ({ onFinish }) => {
 
         return (
             <View style={[styles.slide, { width }]}>
-                <Animated.View style={[styles.iconBg, { transform: [{ scale }] }]}>
+                <Animated.View style={[styles.iconBg, { transform: [{ scale }], backgroundColor: colors.surface }]}>
                     <Text style={styles.iconText}>{item.icon}</Text>
                 </Animated.View>
                 <View style={styles.textContainer}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.description}>{item.description}</Text>
+                    <Text style={[styles.title, { color: colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.description, { color: colors.textMuted }]}>{item.description}</Text>
                 </View>
             </View>
         );
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
             <Animated.FlatList
                 ref={flatListRef}
                 data={DATA}
@@ -94,10 +97,10 @@ const OnboardingScreen = ({ onFinish }) => {
             <View style={styles.footer}>
                 <Paginator />
                 <TouchableOpacity 
-                    style={styles.mainButton} 
+                    style={[styles.mainButton, { backgroundColor: colors.text }]} 
                     onPress={onFinish}
                 >
-                    <Text style={styles.mainButtonText}>Начать</Text>
+                    <Text style={[styles.mainButtonText, { color: colors.background }]}>Начать</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -106,38 +109,38 @@ const OnboardingScreen = ({ onFinish }) => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#fff" },
-    slide: { flex: 1, alignItems: "center", justifyContent: "center", padding: 20 },
+    slide: { flex: 1, alignItems: "center", justifyContent: "center", padding: rw(20) },
     iconBg: {
-        width: 200,
-        height: 200,
-        borderRadius: 100,
+        width: rw(200),
+        height: rw(200),
+        borderRadius: rw(100),
         backgroundColor: "#f8fafc",
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 50,
+        marginBottom: rh(50),
         shadowColor: "#6366f1",
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
         shadowRadius: 20,
     },
-    iconText: { fontSize: 80 },
+    iconText: { fontSize: rf(80) },
     textContainer: { alignItems: "center" },
-    title: { fontSize: 32, fontWeight: "800", color: "#0f172a", marginBottom: 15 },
-    description: { fontSize: 16, textAlign: "center", color: "#64748b", paddingHorizontal: 20, lineHeight: 24 },
-    
-    footer: { padding: 30, alignItems: "center" },
-    paginationContainer: { flexDirection: "row", height: 64, justifyContent: "center", alignItems: "center" },
-    dot: { height: 10, borderRadius: 5, marginHorizontal: 6 },
-    
+    title: { fontSize: rf(32), fontWeight: "800", color: "#0f172a", marginBottom: rh(15) },
+    description: { fontSize: rf(16), textAlign: "center", color: "#64748b", paddingHorizontal: rw(20), lineHeight: rf(24) },
+
+    footer: { padding: ms(30), alignItems: "center" },
+    paginationContainer: { flexDirection: "row", height: rh(64), justifyContent: "center", alignItems: "center" },
+    dot: { height: rh(10), borderRadius: ms(5), marginHorizontal: rw(6) },
+
     mainButton: {
         backgroundColor: "#0f172a",
-        paddingVertical: 18,
-        paddingHorizontal: 60,
-        borderRadius: 20,
+        paddingVertical: rh(18),
+        paddingHorizontal: rw(60),
+        borderRadius: ms(20),
         width: "100%",
         alignItems: "center",
     },
-    mainButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+    mainButtonText: { color: "#fff", fontSize: rf(18), fontWeight: "600" },
 });
 
 export default OnboardingScreen;

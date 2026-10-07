@@ -95,3 +95,7 @@ To learn more about React Native, take a look at the following resources:
 - [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
 - [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
 - [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+
+## Локальные ключи API
+
+Скопируйте `.virtus-secrets.example.json` в `.virtus-secrets.json` и заполните ключи Яндекса. Локальный файл исключён из Git. Babel подставляет значения при сборке; можно также задать переменные `VIRTUS_YANDEX_API_KEY`, `VIRTUS_YANDEX_FOLDER_ID`, `VIRTUS_GEOCODER_API_KEY`. Без ключей доступны локальные задачи и поиск мест OpenStreetMap. После изменения ключей перезапустите Metro с `--reset-cache` или пересоберите APK.
