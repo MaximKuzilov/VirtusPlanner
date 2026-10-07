@@ -67,8 +67,19 @@ export function createLocationNotificationChannel() {
 }
 
 // ─── Запрос разрешения на геолокацию ────────────────────────────────────
+let iosBackgroundLocationEnabled = false;
+export function setIOSBackgroundLocationEnabled(enabled: boolean) {
+  iosBackgroundLocationEnabled = enabled;
+  if (Platform.OS === 'ios') {
+    Geolocation.setRNConfiguration({ skipPermissionRequests: true,
+      authorizationLevel: enabled ? 'always' : 'whenInUse',
+      enableBackgroundLocationUpdates: enabled });
+  }
+}
+
 export async function requestLocationPermission(): Promise<boolean> {
   if (Platform.OS === 'ios') {
+    setIOSBackgroundLocationEnabled(iosBackgroundLocationEnabled);
     return new Promise(resolve => Geolocation.requestAuthorization(() => resolve(true), () => resolve(false)));
   }
   if (Platform.OS !== 'android') return false;
@@ -223,12 +234,12 @@ async function nearbyReminderPlaces(lat: number, lon: number): Promise<NearbyPla
 }
 
 // ─── Полная проверка локации (координаты → поиск задач → уведомление) ────
-export async function checkLocationAndNotify(tasks: Task[], notify = true): Promise<{
+export async function checkLocationAndNotify(tasks: Task[], notify = true, coordinates?: { lat: number; lon: number }): Promise<{
   location: LocationInfo;
   matchedTasks: Task[];
   message: string;
 }> {
-  const coords = await getCurrentCoordinates(!notify);
+  const coords = coordinates ?? await getCurrentCoordinates(!notify);
   const places = notify
     ? await searchNearbyPlaces(coords.lat, coords.lon, 'all', 300)
     : await nearbyReminderPlaces(coords.lat, coords.lon);

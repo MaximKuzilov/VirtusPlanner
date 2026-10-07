@@ -50,7 +50,8 @@ export function configureNotifications() {
       sound: true,
     },
     popInitialNotification: true,
-    requestPermissions: Platform.OS === 'ios',
+    // iOS asks natively for local notifications without registering with APNs.
+    requestPermissions: false,
   });
 
   PushNotification.createChannel(
@@ -143,6 +144,8 @@ function formatTimeLeft(seconds: number): string {
 }
 
 export function showOngoingTimerNotification(taskTitle: string, remainingSeconds: number) {
+  // iOS has no Android-style ongoing notification. Keep the countdown in-app.
+  if (Platform.OS === 'ios') return;
   PushNotification.localNotification({
     id: ONGOING_NOTIF_ID,
     channelId: ONGOING_CHANNEL_ID,
@@ -165,6 +168,8 @@ export function cancelOngoingTimerNotification() {
 const ONGOING_BG_PREFIX = 888000;
 
 export function scheduleBackgroundTimerUpdates(taskTitle: string, startTimestamp: number, totalDuration: number) {
+  // Preserve iOS notification slots for task reminders and the timer completion.
+  if (Platform.OS === 'ios') return;
   const now = Date.now();
   const elapsed = (now - startTimestamp) / 1000;
   const left = totalDuration - elapsed;

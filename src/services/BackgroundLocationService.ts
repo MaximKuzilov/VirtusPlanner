@@ -9,6 +9,7 @@
  */
 
 import BackgroundService from 'react-native-background-actions';
+import Geolocation from '@react-native-community/geolocation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Task } from '../store/types';
 import { AppState, Platform } from 'react-native';
@@ -20,6 +21,7 @@ import {
   showLocationNotification,
   findMatchingTasks,
   clearReminderPlaceCache,
+  setIOSBackgroundLocationEnabled,
 } from './LocationService';
 
 const TASKS_STORAGE_KEY = '@virtus_tasks';
@@ -57,13 +59,14 @@ async function markNotified(placeType: string): Promise<void> {
 }
 
 let currentCheck: Promise<void> | null = null;
-export function checkBackgroundLocationOnce(): Promise<void> {
+export function checkBackgroundLocationOnce(coordinates?: { lat: number; lon: number }): Promise<void> {
   if (currentCheck) return currentCheck;
-  currentCheck = runBackgroundLocationCheck().finally(() => { currentCheck = null; });
+  currentCheck = runBackgroundLocationCheck(coordinates).finally(() => { currentCheck = null; });
   return currentCheck;
 }
 
-async function runBackgroundLocationCheck(): Promise<void> {
+async function runBackgroundLocationCheck(coordinates?: { lat: number; lon: number }): Promise<void> {
+  const generation = serviceGeneration;
   const raw = await AsyncStorage.getItem(TASKS_STORAGE_KEY);
   const tasks: Task[] = raw ? JSON.parse(raw) : [];
   const readSettings = async () => ({ notifications: true, quietHoursStart: '22:00', quietHoursEnd: '08:00',
@@ -71,7 +74,10 @@ async function runBackgroundLocationCheck(): Promise<void> {
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   if (!canNotify(await readSettings()) || !tasks.some(t => !t.completed && t.date === today)) return;
-  const result = await checkLocationAndNotify(tasks, false);
+  const result = coordinates
+    ? await checkLocationAndNotify(tasks, false, coordinates)
+    : await checkLocationAndNotify(tasks, false);
+  if (generation !== serviceGeneration) return;
   if (!result.matchedTasks.length) return;
   // A task or setting may have changed while the map request was in flight.
   const latestTasks: Task[] = JSON.parse(await AsyncStorage.getItem(TASKS_STORAGE_KEY) || '[]');
@@ -81,7 +87,7 @@ async function runBackgroundLocationCheck(): Promise<void> {
   for (const task of matchedTasks) {
     if (await shouldNotify(`${today}:${task.id}`)) eligibleTasks.push(task);
   }
-  if (!eligibleTasks.length) return;
+  if (!eligibleTasks.length || generation !== serviceGeneration) return;
   showLocationNotification(eligibleTasks, result.location.placeName);
   for (const task of eligibleTasks) await markNotified(`${today}:${task.id}`);
 }
@@ -126,6 +132,8 @@ const SERVICE_OPTIONS = {
 
 let starting: Promise<void> | null = null;
 let serviceGeneration = 0;
+let iosWatchId: number | null = null;
+let lastIOSCheck = 0;
 export function startBackgroundLocationService(): Promise<void> {
   if (starting) return starting;
   starting = startLocationService(serviceGeneration).finally(() => { starting = null; });
@@ -133,7 +141,32 @@ export function startBackgroundLocationService(): Promise<void> {
 }
 
 async function startLocationService(generation: number): Promise<void> {
-  if (Platform.OS !== 'android' || AppState.currentState !== 'active') return;
+  if (AppState.currentState !== 'active') return;
+  if (Platform.OS === 'ios') {
+    if (iosWatchId !== null) return;
+    const settings = JSON.parse(await AsyncStorage.getItem('@virtus_settings') || '{}');
+    if (settings.notifications === false || generation !== serviceGeneration) return;
+    setIOSBackgroundLocationEnabled(true);
+    const permitted = await requestLocationPermission();
+    if (!permitted || generation !== serviceGeneration || AppState.currentState !== 'active') {
+      setIOSBackgroundLocationEnabled(false);
+      return;
+    }
+    lastIOSCheck = 0;
+    // CLLocationManager delivers movement updates in the background. iOS does
+    // not support Android's continuous foreground-service / minute-loop model.
+    iosWatchId = Geolocation.watchPosition(position => {
+      if (generation !== serviceGeneration || position.coords.accuracy > 200) return;
+      if (Date.now() - lastIOSCheck < CHECK_INTERVAL_MS) return;
+      lastIOSCheck = Date.now();
+      checkBackgroundLocationOnce({ lat: position.coords.latitude, lon: position.coords.longitude })
+        .catch(error => console.warn('[GeoReminder]', error.message));
+    }, error => console.warn('[GeoReminder]', error.message), {
+      enableHighAccuracy: true, distanceFilter: 100, maximumAge: 10000,
+    });
+    return;
+  }
+  if (Platform.OS !== 'android') return;
   if (BackgroundService.isRunning()) return;
 
   createLocationNotificationChannel();
@@ -153,6 +186,12 @@ async function startLocationService(generation: number): Promise<void> {
 export async function stopBackgroundLocationService(): Promise<void> {
   serviceGeneration++;
   clearReminderPlaceCache();
+  if (Platform.OS === 'ios') {
+    if (iosWatchId !== null) Geolocation.clearWatch(iosWatchId);
+    iosWatchId = null;
+    setIOSBackgroundLocationEnabled(false);
+    return;
+  }
   if (!BackgroundService.isRunning()) return;
   try {
     await BackgroundService.stop();
@@ -162,5 +201,5 @@ export async function stopBackgroundLocationService(): Promise<void> {
 }
 
 export function isBackgroundServiceRunning(): boolean {
-  return BackgroundService.isRunning();
+  return Platform.OS === 'ios' ? iosWatchId !== null : BackgroundService.isRunning();
 }

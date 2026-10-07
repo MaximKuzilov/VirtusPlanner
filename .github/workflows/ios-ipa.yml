@@ -1,0 +1,63 @@
+name: iOS IPA for AltStore
+
+on:
+  push:
+    branches: [ios-support]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_15.4.app/Contents/Developer
+      NO_FLIPPER: '1'
+      RCT_NEW_ARCH_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install JavaScript dependencies
+        run: npm ci
+      - name: Verify application
+        run: |
+          npm run typecheck
+          npm test -- --testTimeout=20000
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Install native dependencies
+        working-directory: ios
+        run: bundle exec pod install
+      - name: Build standalone device IPA
+        env:
+          VIRTUS_YANDEX_API_KEY: ${{ secrets.VIRTUS_YANDEX_API_KEY }}
+          VIRTUS_YANDEX_FOLDER_ID: ${{ secrets.VIRTUS_YANDEX_FOLDER_ID }}
+          VIRTUS_GEOCODER_API_KEY: ${{ secrets.VIRTUS_GEOCODER_API_KEY }}
+        run: bash scripts/build-ios-ipa.sh
+      - name: Upload IPA for installation
+        uses: actions/upload-artifact@v4
+        with:
+          name: VirtusPlanner-AltStore
+          path: |
+            build/ios/VirtusPlanner-AltStore.ipa
+            build/ios/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-diagnostics
+          path: |
+            build/ios/xcodebuild.log
+            ios/Podfile.lock
+          retention-days: 7
