@@ -33,12 +33,16 @@ jobs:
           mkdir -p build/smoke
           xcodebuild -workspace ios/VirtusPlanner.xcworkspace -scheme VirtusPlanner \
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/smoke/DerivedData CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build/smoke/DerivedData CODE_SIGNING_ALLOWED=NO ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES \
             build > build/smoke/build.log 2>&1
+          ditto -c -k --keepParent build/smoke/DerivedData/Build/Products/Release-iphonesimulator/VirtusPlanner.app build/smoke/SimulatorApp.zip
       - name: Verify standalone launch
         run: |
           set -euo pipefail
-          DEVICE=$(xcrun simctl create VirtusPlannerSmoke 'iPhone 15' 'iOS 17.5')
+          export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+          xcrun simctl list runtimes -j > build/smoke/runtimes.json
+          RUNTIME=$(python3 -c 'import json; r=[r for r in json.load(open("build/smoke/runtimes.json"))["runtimes"] if r.get("isAvailable") and "iOS" in r["identifier"]]; assert r, "No available iOS runtime"; print(sorted(r, key=lambda x: tuple(map(int,x["version"].split("."))))[-1]["identifier"])')
+          DEVICE=$(xcrun simctl create VirtusPlannerSmoke 'iPhone 15' "$RUNTIME")
           xcrun simctl boot "$DEVICE"
           xcrun simctl bootstatus "$DEVICE" -b
           APP=build/smoke/DerivedData/Build/Products/Release-iphonesimulator/VirtusPlanner.app
@@ -59,4 +63,6 @@ jobs:
             build/smoke/*.log
             build/smoke/*.txt
             build/smoke/*.png
+            build/smoke/*.json
+            build/smoke/SimulatorApp.zip
           retention-days: 7
