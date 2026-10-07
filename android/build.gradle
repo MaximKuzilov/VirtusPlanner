@@ -1,11 +1,11 @@
 buildscript {
     ext {
-        buildToolsVersion = "36.0.0"
-        minSdkVersion = 24
-        compileSdkVersion = 36
-        targetSdkVersion = 36
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 33      // Android 13 minimum
+        compileSdkVersion = 35  // Android 15
+        targetSdkVersion = 35   // Android 15 (covers 13–15; 16 via forward-compat)
         ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.1.20"
+        kotlinVersion = "1.9.22"
     }
     repositories {
         google()
@@ -15,6 +15,17 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+// Force androidx.core >= 1.12.0 for ALL subprojects (including react-native-background-actions)
+// ServiceCompat.startForeground(service, id, notification, type) requires core 1.12.0+
+subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:1.13.1"
+            force "androidx.core:core-ktx:1.13.1"
+        }
     }
 }
 

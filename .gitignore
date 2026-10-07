@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # OSX
 #
 .DS_Store
@@ -56,6 +55,7 @@ yarn-error.log
 
 # Bundle artifact
 *.jsbundle
+/android/app/src/main/assets/index.android.bundle
 
 # Ruby / CocoaPods
 **/Pods/
@@ -74,7 +74,6 @@ yarn-error.log
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-=======
 # Gradle files
 .gradle/
 build/
@@ -109,4 +108,6 @@ google-services.json
 
 # Android Profiling
 *.hprof
->>>>>>> 3dde9ad1fc1beed09743265dcf6e4e2b5151b77b
+
+# Local API credentials are injected by Babel during bundling
+.virtus-secrets.json
